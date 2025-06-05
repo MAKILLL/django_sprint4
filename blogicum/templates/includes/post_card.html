@@ -10,9 +10,9 @@
       <h6 class="card-subtitle mb-2 text-muted">
         <small>
           {% if not post.is_published %}
-            <p class="text-secondary">Пост снят с публикации админом</p>
+            <p class="text-danger">Пост снят с публикации админом</p>
           {% elif not post.category.is_published %}
-            <p class="text-secondary">Выбранная категория снята с публикации админом</p>
+            <p class="text-danger">Выбранная категория снята с публикации админом</p>
           {% endif %}
           {{ post.pub_date|date:"d E Y, H:i" }} | {% if post.location and post.location.is_published %}{{ post.location.name }}{% else %}Планета Земля{% endif %}<br>
           От автора <a class="text-muted" href="{% url 'blog:profile' post.author.username %}">@{{ post.author.username }}</a> в
@@ -20,8 +20,8 @@
         </small>
       </h6>
       <p class="card-text">{{ post.text|truncatewords:10 }}</p>
-      <a class="btn btn-sm btn-secondary" href="{% url 'blog:post_detail' post.id %}" class="card-link">Читать полный текст</a>
-      <a class="btn btn-sm btn-secondary" href="{% url 'blog:post_detail' post.id %}" class="card-link text-muted">Комментарии ({{ post.comment_count }})</a>
+      <a href="{% url 'blog:post_detail' post.id %}" class="card-link">Читать полный текст</a>
+      <a href="{% url 'blog:post_detail' post.id %}" class="card-link text-muted">Комментарии ({{ post.comment_count }})</a>
     </div>
   </div>
 </div>
