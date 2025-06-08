@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import models
 from django.db.models import Q
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.urls import reverse_lazy
@@ -13,18 +14,51 @@ from django.views.generic import (
     UpdateView
 )
 
-from .mixin import (
-    CommentMixin,
-    CommentSuccessUrlMixin,
-    OnlyAuthorMixin,
-    PostFormMixin,
-    PostMixin
-)
 from .forms import CommentForm, PostForm, UserForm
-from .models import Category, Post
+from .models import Category, Comment, Post
 
 
 User = get_user_model()
+
+
+class OnlyAuthorMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.get_object().author == self.request.user
+
+    def handle_no_permission(self):
+        return HttpResponseRedirect(
+            reverse_lazy(
+                'blog:post_detail', kwargs={'post_id': self.kwargs['post_id']}
+            )
+        )
+
+
+class PostMixin(LoginRequiredMixin):
+    model = Post
+    pk_url_kwarg = 'post_id'
+    template_name = 'blog/create.html'
+
+
+class PostFormMixin:
+    form_class = PostForm
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+
+class CommentMixin(OnlyAuthorMixin):
+    model = Comment
+    template_name = 'blog/comment.html'
+    pk_url_kwarg = 'comment_id'
+
+
+class CommentSuccessUrlMixin(LoginRequiredMixin):
+    def get_success_url(self):
+        return reverse_lazy(
+            'blog:post_detail',
+            kwargs={'post_id': self.object.post.pk}
+        )
 
 
 class IndexListView(ListView):
@@ -35,24 +69,13 @@ class IndexListView(ListView):
         return Post.published_posts.all()
 
 
-class PostDetailView(LoginRequiredMixin, DetailView):
-    pk_url_kwarg = 'post_id'
+class PostDetailView(DetailView):
+    model = Post
     template_name = 'blog/detail.html'
+    pk_url_kwarg = 'post_id'
 
     def get_object(self, queryset=None):
-        post_id = self.kwargs.get(self.pk_url_kwarg)
-        return (
-            get_object_or_404(
-                Post.objects.filter(
-                    Q(pk=post_id)
-                    & Q(author=self.request.user)
-                    | Q(pk=post_id)
-                    & Q(is_published=True)
-                    & Q(category__is_published=True)
-                    & Q(pub_date__lte=timezone.now())
-                )
-            )
-        )
+        return get_object_or_404(Post, pk=self.kwargs['post_id'])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
